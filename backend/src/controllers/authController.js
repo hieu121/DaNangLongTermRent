@@ -59,4 +59,22 @@ const me = async (req, res, next) => {
   }
 };
 
-module.exports = { register, verifyEmail, resendOtp, login, googleLogin, me };
+const updateProfile = async (req, res, next) => {
+  try {
+    const user = await authService.updateProfile(req.user.id, req.body);
+    return success(res, { user }, "Profile updated");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const changePassword = async (req, res, next) => {
+  try {
+    await authService.changePassword(req.user.id, req.body);
+    return success(res, null, "Password changed");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+module.exports = { register, verifyEmail, resendOtp, login, googleLogin, me, updateProfile, changePassword };

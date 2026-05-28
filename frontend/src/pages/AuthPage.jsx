@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { demoAccounts, getAccountPassword } from "../data/mockData";
 import { useAuthStore } from "../store/authStore";
 import { api } from "../api/client";
 
@@ -14,7 +13,6 @@ export default function AuthPage() {
   const loginStore = useAuthStore((s) => s.login);
 
   const [form, setForm] = useState({
-    role: "tenant",
     email: "",
     password: "",
     fullName: "",
@@ -66,8 +64,7 @@ export default function AuthPage() {
         email: form.email,
         password: form.password,
         fullName: form.fullName,
-        phone: form.phone,
-        role: form.role
+        phone: form.phone
       });
       if (response.data.success) {
         setPendingEmail(form.email);
@@ -92,7 +89,7 @@ export default function AuthPage() {
         completeLogin({
           token,
           user,
-          policyState: { mustAccept: user.role === "user" }
+          policyState: { mustAccept: user.role !== "admin" }
         });
       } else {
         setError(response.data.message || "Mã OTP không hợp lệ.");
@@ -102,28 +99,10 @@ export default function AuthPage() {
     }
   };
 
-  const loginDemoRole = (role) => {
-    const account = demoAccounts.find((item) => item.role === role);
-    if (!account) {
-      return;
-    }
-    completeLogin({
-      token: "demo-token",
-      user: {
-        id: account.id,
-        email: account.email,
-        full_name: account.full_name || account.fullName || "Demo User",
-        phone: account.phone || "",
-        role: account.role,
-        is_verified: true
-      },
-      policyState: { mustAccept: account.role === "user" }
-    });
-  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 text-slate-100">
-      <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1.2fr_1fr]">
+      <div className="grid w-full max-w-3xl gap-5">
         <div className="rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
           <div className="flex items-center gap-3">
             <img src="/logo.jpg" alt="Da Nang Longterm Rent" className="h-12 w-12 rounded-xl border border-white/20" />
@@ -249,33 +228,6 @@ export default function AuthPage() {
           </Link>
         </div>
 
-        <aside className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
-          <h2 className="text-lg font-semibold">Điều hướng nhanh theo vai trò</h2>
-          <p className="mt-2 text-sm text-slate-300">
-            Bấm vào các nút dưới đây để test nhanh luồng đăng nhập theo từng vai trò.
-          </p>
-          <div className="mt-5 space-y-3">
-            <button
-              type="button"
-              className="w-full rounded-xl bg-white px-4 py-3 text-left text-slate-900"
-              onClick={() => loginDemoRole("user")}
-            >
-              <p className="font-semibold">Vào dashboard Người dùng</p>
-              <p className="text-xs text-slate-700">Thuê phòng - đăng cho thuê - quản lý thanh toán</p>
-            </button>
-            <button
-              type="button"
-              className="w-full rounded-xl bg-white px-4 py-3 text-left text-slate-900"
-              onClick={() => loginDemoRole("admin")}
-            >
-              <p className="font-semibold">Vào dashboard Admin</p>
-              <p className="text-xs text-slate-700">Quản lý tài khoản - duyệt phòng - tiện nghi</p>
-            </button>
-          </div>
-          <div className="mt-5 rounded-xl border border-white/10 p-3 text-xs text-slate-300">
-            Demo account: user1@rent.vn / user2@rent.vn / admin@rent.vn - mật khẩu 123456.
-          </div>
-        </aside>
       </div>
     </div>
   );

@@ -28,6 +28,17 @@ const reviewListing = async ({ listingId, adminId, action, note }) => {
 const warnOwner = async ({ ownerId, adminId, reason }) =>
   adminRepository.createOwnerWarning({ ownerId, adminId, reason });
 
+const toggleUserStatus = async (userId) => {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+  if (user.role === "admin") {
+    throw new Error("Cannot lock admin account");
+  }
+  await userRepository.updateUserDetails(userId, { isActive: !user.is_active });
+};
+
 const createPolicy = async (payload) => policyService.createPolicy(payload);
 
-module.exports = { getDashboardStats, reviewListing, warnOwner, createPolicy };
+module.exports = { getDashboardStats, reviewListing, warnOwner, toggleUserStatus, createPolicy };

@@ -35,9 +35,36 @@ const createPolicy = async ({ role, title, content, version }) => {
   return result.insertId;
 };
 
+const getAllPolicies = async () => {
+  const [rows] = await pool.query(
+    "SELECT * FROM policies ORDER BY role, version DESC"
+  );
+  return rows;
+};
+
+const getPolicyById = async (id) => {
+  const [rows] = await pool.query("SELECT * FROM policies WHERE id = ?", [id]);
+  return rows[0] || null;
+};
+
+const updatePolicy = async (id, { title, content, version, isActive }) => {
+  const sets = [];
+  const params = [];
+  if (title !== undefined) { sets.push("title = ?"); params.push(title); }
+  if (content !== undefined) { sets.push("content = ?"); params.push(content); }
+  if (version !== undefined) { sets.push("version = ?"); params.push(version); }
+  if (isActive !== undefined) { sets.push("is_active = ?"); params.push(isActive); }
+  if (sets.length === 0) return;
+  params.push(id);
+  await pool.query(`UPDATE policies SET ${sets.join(", ")} WHERE id = ?`, params);
+};
+
 module.exports = {
   getLatestPolicyByRole,
   getAcceptance,
   acceptPolicy,
-  createPolicy
+  createPolicy,
+  getAllPolicies,
+  getPolicyById,
+  updatePolicy
 };

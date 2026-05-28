@@ -1,16 +1,23 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { danangWards2026, mockListings, mockPayments } from "../data/mockData";
 import { useAuthStore } from "../store/authStore";
+import { api } from "../api/client";
 
 export default function UserPage() {
+  const [searchParams] = useSearchParams();
   const PAGE_SIZE = 6;
   const MIN_LISTING_IMAGES = 5;
   const MAX_LISTING_IMAGES = 10;
   const user = useAuthStore((s) => s.user);
   const [dashboardView, setDashboardView] = useState(user?.role === "owner" ? "owner" : "tenant");
-  const [ownerSection, setOwnerSection] = useState("my-listings");
+  const [ownerSection, setOwnerSection] = useState(searchParams.get("tab") === "create-listing" ? "create-listing" : "my-listings");
   const [tenantSection, setTenantSection] = useState("rooms");
+  const [showOwnerUpgrade, setShowOwnerUpgrade] = useState(false);
+  const [ownerRequests, setOwnerRequests] = useState([]);
+  const [ownerReqLoading, setOwnerReqLoading] = useState(false);
+  const [ownerReqSubmitting, setOwnerReqSubmitting] = useState(false);
+  const [ownerReqError, setOwnerReqError] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [quickFilter, setQuickFilter] = useState({
     minStay: "",
@@ -22,14 +29,47 @@ export default function UserPage() {
   const [searchPage, setSearchPage] = useState(1);
   const [areaPage, setAreaPage] = useState(1);
   const myPayments = mockPayments.filter((item) => Number(item.tenant_id) === Number(user?.id));
-  const myApprovedListings = mockListings.filter(
-    (item) => Number(item.owner_id) === Number(user?.id) && item.status !== "pending"
-  );
-  const myPendingListings = mockListings.filter(
-    (item) => Number(item.owner_id) === Number(user?.id) && item.status === "pending"
-  );
-  const [ownerApprovedListings, setOwnerApprovedListings] = useState(myApprovedListings);
-  const [ownerPendingListings, setOwnerPendingListings] = useState(myPendingListings);
+  const [ownerApprovedListings, setOwnerApprovedListings] = useState([]);
+  const [ownerPendingListings, setOwnerPendingListings] = useState([]);
+  const [, setOwnerListingsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.role !== "owner") return;
+    const fetchMyListings = async () => {
+      try {
+        const res = await api.get("/listings/my-listings");
+        if (res.data.success) {
+          const all = res.data.data;
+          setOwnerApprovedListings(all.filter((l) => l.status !== "pending"));
+          setOwnerPendingListings(all.filter((l) => l.status === "pending"));
+        }
+      } catch {
+        // fallback mock
+        const mockMine = mockListings.filter((item) => Number(item.owner_id) === Number(user?.id));
+        setOwnerApprovedListings(mockMine.filter((l) => l.status !== "pending"));
+        setOwnerPendingListings(mockMine.filter((l) => l.status === "pending"));
+      } finally {
+        setOwnerListingsLoading(false);
+      }
+    };
+    fetchMyListings();
+  }, [user?.id, user?.role]);
+
+  useEffect(() => {
+    if (!showOwnerUpgrade) return;
+    const fetchRequests = async () => {
+      setOwnerReqLoading(true);
+      try {
+        const res = await api.get("/owner-requests/my-requests");
+        if (res.data.success) setOwnerRequests(res.data.data);
+      } catch {
+        // ignore
+      } finally {
+        setOwnerReqLoading(false);
+      }
+    };
+    fetchRequests();
+  }, [showOwnerUpgrade]);
   const [editingListingId, setEditingListingId] = useState(null);
   const [editListingForm, setEditListingForm] = useState({
     price: "",
@@ -112,10 +152,7 @@ export default function UserPage() {
     }
   }, [rentingView, tenantSection]);
 
-  useEffect(() => {
-    setOwnerApprovedListings(myApprovedListings);
-    setOwnerPendingListings(myPendingListings);
-  }, [user?.id]);
+
 
   const toggleTenantSection = (section) => {
     setTenantSection((currentSection) => (currentSection === section ? null : section));
@@ -152,7 +189,7 @@ export default function UserPage() {
             className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
               rentingView ? "bg-white text-slate-900" : "text-slate-200 hover:bg-white/10"
             }`}
-            onClick={() => setDashboardView("tenant")}
+            onClick={() => { setDashboardView("tenant"); setShowOwnerUpgrade(false); }}
           >
             Người thuê
           </button>
@@ -161,13 +198,20 @@ export default function UserPage() {
             className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
               !rentingView ? "bg-white text-slate-900" : "text-slate-200 hover:bg-white/10"
             }`}
-            onClick={() => setDashboardView("owner")}
+            onClick={() => {
+              if (user?.role !== "owner") {
+                setShowOwnerUpgrade(true);
+                return;
+              }
+              setShowOwnerUpgrade(false);
+              setDashboardView("owner");
+            }}
           >
             Người cho thuê
           </button>
         </div>
         <div className={`mt-5 grid gap-3 ${rentingView ? "md:grid-cols-3" : "md:grid-cols-3"}`}>
-          {rentingView ? (
+      {rentingView ? (
             <>
               <Metric
                 value={activeListings.length}
@@ -225,6 +269,115 @@ export default function UserPage() {
         </div>
       </section>
 
+      {showOwnerUpgrade && (
+        <section className="rounded-2xl border border-amber-200 bg-white p-5">
+          <h2 className="text-lg font-semibold">Yêu cầu trở thành chủ nhà</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Gửi yêu cầu để admin phê duyệt. Sau khi được duyệt, bạn có thể đăng phòng cho thuê.
+          </p>
+
+          {ownerReqLoading ? (
+            <p className="mt-3 text-sm text-slate-500">Đang tải...</p>
+          ) : ownerRequests.length === 0 ? (
+            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+              <p className="text-sm text-slate-600">Bạn chưa gửi yêu cầu nào.</p>
+              <button
+                type="button"
+                disabled={ownerReqSubmitting}
+                className="mt-3 rounded-lg bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                onClick={async () => {
+                  setOwnerReqSubmitting(true);
+                  setOwnerReqError("");
+                  try {
+                    const res = await api.post("/owner-requests");
+                    if (res.data.success) {
+                      setOwnerRequests((prev) => [
+                        { id: res.data.data.requestId, user_id: user.id, status: "pending", created_at: new Date().toISOString() },
+                        ...prev
+                      ]);
+                    }
+                  } catch (err) {
+                    setOwnerReqError(err.response?.data?.message || "Có lỗi xảy ra");
+                  } finally {
+                    setOwnerReqSubmitting(false);
+                  }
+                }}
+              >
+                {ownerReqSubmitting ? "Đang gửi..." : "Gửi yêu cầu trở thành chủ nhà"}
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {ownerRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className={`rounded-xl border p-4 ${
+                    req.status === "approved"
+                      ? "border-emerald-200 bg-emerald-50"
+                      : req.status === "rejected"
+                      ? "border-red-200 bg-red-50"
+                      : "border-amber-200 bg-amber-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium">Yêu cầu #{req.id}</p>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        req.status === "approved"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : req.status === "rejected"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {req.status === "approved" ? "Đã duyệt" : req.status === "rejected" ? "Từ chối" : "Chờ duyệt"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Gửi lúc: {new Date(req.created_at).toLocaleString("vi-VN")}
+                  </p>
+                  {req.note && (
+                    <p className="mt-2 text-sm text-slate-600"><b>Phản hồi:</b> {req.note}</p>
+                  )}
+                </div>
+              ))}
+              {ownerRequests.every((r) => r.status !== "pending") && (
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  <button
+                    type="button"
+                    disabled={ownerReqSubmitting}
+                    className="rounded-lg bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                    onClick={async () => {
+                      setOwnerReqSubmitting(true);
+                      setOwnerReqError("");
+                      try {
+                        const res = await api.post("/owner-requests");
+                        if (res.data.success) {
+                          setOwnerRequests((prev) => [
+                            { id: res.data.data.requestId, user_id: user.id, status: "pending", created_at: new Date().toISOString() },
+                            ...prev
+                          ]);
+                        }
+                      } catch (err) {
+                        setOwnerReqError(err.response?.data?.message || "Có lỗi xảy ra");
+                      } finally {
+                        setOwnerReqSubmitting(false);
+                      }
+                    }}
+                  >
+                    {ownerReqSubmitting ? "Đang gửi..." : "Gửi yêu cầu mới"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {ownerReqError && <p className="mt-2 text-sm text-red-600">{ownerReqError}</p>}
+        </section>
+      )}
+
+      {!showOwnerUpgrade && (
+        <>
       {rentingView && !tenantSection && (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-5">
           <p className="text-sm text-slate-600">
@@ -576,6 +729,22 @@ export default function UserPage() {
                       >
                         Xem chi tiết
                       </Link>
+                      <button
+                        type="button"
+                        className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                        onClick={async () => {
+                          if (!window.confirm("Xóa phòng này?")) return;
+                          try {
+                            await api.delete(`/listings/${listing.id}`);
+                            setOwnerApprovedListings((prev) => prev.filter((l) => l.id !== listing.id));
+                            setOwnerPendingListings((prev) => prev.filter((l) => l.id !== listing.id));
+                          } catch {
+                            alert("Lỗi xóa phòng");
+                          }
+                        }}
+                      >
+                        Xóa
+                      </button>
                     </div>
                     {editingListingId === listing.id && (
                       <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -626,25 +795,33 @@ export default function UserPage() {
                           <button
                             type="button"
                             className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
-                            onClick={() => {
+                            onClick={async () => {
                               if (!editListingForm.price || !editListingForm.minStay || !editListingForm.availableDate) {
                                 return;
                               }
-                              setOwnerApprovedListings((prev) =>
-                                prev.map((item) =>
-                                  item.id === listing.id
-                                    ? {
-                                        ...item,
-                                        price: Number(editListingForm.price),
-                                        min_stay: Number(editListingForm.minStay),
-                                        available_date: editListingForm.availableDate,
-                                        status: editListingForm.status,
-                                        updated_at: new Date().toISOString()
-                                      }
-                                    : item
-                                )
-                              );
-                              setEditingListingId(null);
+                              try {
+                                await api.put(`/listings/${listing.id}`, {
+                                  price: Number(editListingForm.price),
+                                  minStay: Number(editListingForm.minStay),
+                                  availableDate: editListingForm.availableDate
+                                });
+                                setOwnerApprovedListings((prev) =>
+                                  prev.map((item) =>
+                                    item.id === listing.id
+                                      ? {
+                                          ...item,
+                                          price: Number(editListingForm.price),
+                                          min_stay: Number(editListingForm.minStay),
+                                          available_date: editListingForm.availableDate,
+                                          status: editListingForm.status,
+                                        }
+                                      : item
+                                  )
+                                );
+                                setEditingListingId(null);
+                              } catch {
+                                alert("Lỗi cập nhật phòng");
+                              }
                             }}
                           >
                             Lưu cập nhật
@@ -801,7 +978,7 @@ export default function UserPage() {
                             ...prev,
                             imageUrls: [...prev.imageUrls, ...uploadedDataUrls].slice(0, MAX_LISTING_IMAGES)
                           }));
-                        } catch (error) {
+                        } catch {
                           // Keep UX simple for frontend mock; skip broken files.
                         }
                         event.target.value = "";
@@ -846,7 +1023,7 @@ export default function UserPage() {
               <button
                 type="button"
                 className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-                onClick={() => {
+                onClick={async () => {
                   const cleanImageUrls = newListingForm.imageUrls.slice(0, MAX_LISTING_IMAGES);
                   if (
                     !newListingForm.title ||
@@ -858,26 +1035,42 @@ export default function UserPage() {
                   ) {
                     return;
                   }
-                  setOwnerPendingListings((prev) => [
-                    {
-                      id: Date.now(),
-                      owner_id: user?.id,
-                      owner_name: user?.full_name,
+                  try {
+                    const res = await api.post("/listings", {
                       title: newListingForm.title,
-                      description: newListingForm.description || "Tin đăng mới từ người cho thuê.",
+                      description: newListingForm.description || "Tin đăng mới.",
                       price: Number(newListingForm.price),
                       area: newListingForm.area,
                       address: newListingForm.address,
-                      min_stay: Number(newListingForm.minStay) || 1,
-                      available_date: newListingForm.availableDate,
-                      status: "pending",
-                      updated_at: null,
-                      listing_images: cleanImageUrls,
-                      listing_amenities: newListingForm.amenities,
-                      reviews: []
-                    },
-                    ...prev
-                  ]);
+                      minStay: Number(newListingForm.minStay) || 1,
+                      availableDate: newListingForm.availableDate,
+                      images: cleanImageUrls,
+                      amenities: newListingForm.amenities
+                    });
+                    if (res.data.success) {
+                      setOwnerPendingListings((prev) => [
+                        {
+                          id: res.data.data.listingId,
+                          owner_id: user?.id,
+                          owner_name: user?.full_name,
+                          title: newListingForm.title,
+                          description: newListingForm.description || "Tin đăng mới.",
+                          price: Number(newListingForm.price),
+                          area: newListingForm.area,
+                          address: newListingForm.address,
+                          min_stay: Number(newListingForm.minStay) || 1,
+                          available_date: newListingForm.availableDate,
+                          status: "pending",
+                          listing_images: cleanImageUrls,
+                          listing_amenities: newListingForm.amenities,
+                          reviews: []
+                        },
+                        ...prev
+                      ]);
+                    }
+                  } catch {
+                    alert("Lỗi đăng tin");
+                  }
                   setNewListingForm({
                     title: "",
                     address: "",
@@ -898,7 +1091,7 @@ export default function UserPage() {
           )}
         </>
       )}
-
+      </>)}
     </div>
   );
 }

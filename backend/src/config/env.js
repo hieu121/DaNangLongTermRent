@@ -16,5 +16,7 @@ module.exports = {
   SMTP_PASS: process.env.SMTP_PASS || "",
   EMAIL_USER: process.env.EMAIL_USER || "",
   EMAIL_PASS: process.env.EMAIL_PASS || "",
-  APP_BASE_URL: process.env.APP_BASE_URL || "http://localhost:5173"
+  APP_BASE_URL: process.env.APP_BASE_URL || "http://localhost:5173",
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL || "",
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || ""
 };

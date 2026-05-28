@@ -3,7 +3,7 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import NotificationBell from "./NotificationBell";
 import PolicyModal from "./PolicyModal";
 import UserAccountModal from "./UserAccountModal";
-import { useAuthStore } from "../store/authStore";
+import { useAuthStore, ROLE_LABEL } from "../store/authStore";
 
 export default function MainLayout() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
@@ -11,7 +11,7 @@ export default function MainLayout() {
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const dashboardPath = user?.role === "admin" ? "/admin" : "/user";
-  const roleLabel = user?.role === "admin" ? "Quản trị viên" : "Người dùng";
+  const roleLabel = ROLE_LABEL[user?.role] || "Người dùng";
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -28,27 +28,42 @@ export default function MainLayout() {
             <Link to={dashboardPath} className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20">
               Bảng điều khiển
             </Link>
-            {user?.role === "user" ? (
-              <button
-                type="button"
+
+            {user?.role === "tenant" && (
+              <Link
+                to="/my-bookings"
                 className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
-                onClick={() => setAccountModalOpen(true)}
               >
-                Quản lý tài khoản
-              </button>
-            ) : (
-              <Link to="/listing/1" className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20">
-                Tin phòng
+                Đặt phòng
               </Link>
             )}
+
+            {user?.role === "owner" && (
+              <Link to="/user?tab=create-listing" className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20">
+                Đăng phòng
+              </Link>
+            )}
+
+            <button
+              type="button"
+              className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
+              onClick={() => setAccountModalOpen(true)}
+            >
+              Tài khoản
+            </button>
+
             <Link to="/chat" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100">
               Tin nhắn
             </Link>
+
             {user?.role === "admin" && (
-              <Link to="/admin?tab=admin-accounts" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100">
-                Tài khoản admin
-              </Link>
+              <>
+                <Link to="/admin" className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100">
+                  Quản trị
+                </Link>
+              </>
             )}
+
             <NotificationBell />
             <button
               type="button"

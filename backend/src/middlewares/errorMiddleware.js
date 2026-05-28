@@ -1,8 +1,15 @@
-// eslint-disable-next-line no-unused-vars
 module.exports = (error, req, res, next) => {
-  // eslint-disable-next-line no-console
   console.error(error);
-  return res.status(500).json({
+
+  if (error.name === "SequelizeValidationError" || error.name === "SequelizeUniqueConstraintError") {
+    return res.status(422).json({
+      success: false,
+      message: error.errors?.[0]?.message || "Validation error"
+    });
+  }
+
+  const status = error.status || 400;
+  return res.status(status >= 100 && status < 600 ? status : 400).json({
     success: false,
     message: error.message || "Internal Server Error"
   });

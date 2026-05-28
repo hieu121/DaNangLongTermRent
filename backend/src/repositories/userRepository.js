@@ -30,14 +30,20 @@ const updateVerification = async (userId, isVerified) => {
 };
 
 const updateUserDetails = async (userId, payload) => {
-  await User.update({
-    password_hash: payload.passwordHash,
-    full_name: payload.fullName,
-    phone: payload.phone,
-    role: payload.role
-  }, {
-    where: { id: userId }
-  });
+  const updateData = {};
+  if (payload.passwordHash !== undefined) updateData.password_hash = payload.passwordHash;
+  if (payload.fullName !== undefined) updateData.full_name = payload.fullName;
+  if (payload.phone !== undefined) updateData.phone = payload.phone;
+  if (payload.role !== undefined) updateData.role = payload.role;
+  if (payload.isActive !== undefined) updateData.is_active = payload.isActive;
+  if (payload.avatarUrl !== undefined) updateData.avatar_url = payload.avatarUrl;
+
+  await User.update(updateData, { where: { id: userId } });
+};
+
+const findByPkWithPassword = async (id) => {
+  const user = await User.findByPk(id);
+  return user ? user.get({ plain: true }) : null;
 };
 
 const upsertGoogleAccount = async ({ userId, googleId, email }) => {
@@ -63,6 +69,7 @@ module.exports = {
   createUser,
   findByEmail,
   findById,
+  findByPkWithPassword,
   updateVerification,
   updateUserDetails,
   upsertGoogleAccount,

@@ -20,10 +20,37 @@ const getListings = async (req, res, next) => {
   }
 };
 
+const getMyListings = async (req, res, next) => {
+  try {
+    const data = await listingService.getMyListings(req.user.id);
+    return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const getListingDetail = async (req, res, next) => {
   try {
     const data = await listingService.getListingDetail(Number(req.params.id), req.user);
     return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const updateListing = async (req, res, next) => {
+  try {
+    await listingService.updateListing(req.user.id, Number(req.params.id), req.body);
+    return success(res, null, "Listing updated");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const deleteListing = async (req, res, next) => {
+  try {
+    await listingService.deleteListing(req.user.id, Number(req.params.id));
+    return success(res, null, "Listing deleted");
   } catch (error) {
     return next(error);
   }
@@ -41,6 +68,9 @@ const markListingUpdated = async (req, res, next) => {
 module.exports = {
   createListing,
   getListings,
+  getMyListings,
   getListingDetail,
+  updateListing,
+  deleteListing,
   markListingUpdated
 };

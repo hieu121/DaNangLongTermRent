@@ -1,22 +1,22 @@
-import { useMemo, useState } from "react";
-import { demoAccounts, getAccountPassword, updateAccountPassword } from "../data/mockData";
-import { useAuthStore } from "../store/authStore";
+import { useState } from "react";
+import { api } from "../api/client";
+import { useAuthStore, ROLE_LABEL } from "../store/authStore";
 
 export default function UserAccountModal({ open, onClose }) {
   const user = useAuthStore((s) => s.user);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const [form, setForm] = useState({
     oldPassword: "",
     newPassword: "",
     confirmPassword: ""
   });
+  const [profileForm, setProfileForm] = useState({
+    fullName: user?.full_name || "",
+    phone: user?.phone || ""
+  });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  const account = useMemo(() => {
-    return demoAccounts.find(
-      (item) => Number(item.id) === Number(user?.id) || item.email === user?.email
-    );
-  }, [user?.email, user?.id]);
+  const [saving, setSaving] = useState(false);
 
   if (!open) {
     return null;
@@ -24,6 +24,7 @@ export default function UserAccountModal({ open, onClose }) {
 
   const resetForm = () => {
     setForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
+    setProfileForm({ fullName: user?.full_name || "", phone: user?.phone || "" });
     setError("");
     setSuccess("");
   };
@@ -33,23 +34,30 @@ export default function UserAccountModal({ open, onClose }) {
     onClose?.();
   };
 
-  const handleSubmit = (event) => {
+  const handleUpdateProfile = async () => {
+    setError("");
+    setSuccess("");
+    setSaving(true);
+    try {
+      const res = await api.patch("/auth/profile", profileForm);
+      if (res.data.success) {
+        updateUser(res.data.data.user);
+        setSuccess("Cập nhật thông tin thành công.");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Lỗi cập nhật thông tin.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (event) => {
     event.preventDefault();
     setError("");
     setSuccess("");
 
     if (!form.oldPassword || !form.newPassword || !form.confirmPassword) {
-      setError("Vui lòng nhập đầy đủ mật khẩu cũ, mật khẩu mới và xác nhận mật khẩu mới.");
-      return;
-    }
-
-    if (!account) {
-      setError("Không tìm thấy thông tin tài khoản để cập nhật mật khẩu.");
-      return;
-    }
-
-    if (getAccountPassword(account) !== form.oldPassword) {
-      setError("Mật khẩu cũ không chính xác.");
+      setError("Vui lòng nhập đầy đủ mật khẩu cũ, mật khẩu mới và xác nhận.");
       return;
     }
 
@@ -63,14 +71,18 @@ export default function UserAccountModal({ open, onClose }) {
       return;
     }
 
-    if (form.newPassword === form.oldPassword) {
-      setError("Mật khẩu mới phải khác mật khẩu cũ.");
-      return;
+    try {
+      const res = await api.post("/auth/change-password", {
+        currentPassword: form.oldPassword,
+        newPassword: form.newPassword
+      });
+      if (res.data.success) {
+        setSuccess("Đổi mật khẩu thành công.");
+        setForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Đổi mật khẩu thất bại.");
     }
-
-    updateAccountPassword(account.id, form.newPassword);
-    setSuccess("Đổi mật khẩu thành công. Lần đăng nhập sau vui lòng dùng mật khẩu mới.");
-    setForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
   };
 
   return (
@@ -82,13 +94,13 @@ export default function UserAccountModal({ open, onClose }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">Quản lý tài khoản</h2>
-            <p className="mt-1 text-sm text-slate-600">Xem thông tin cá nhân và cập nhật mật khẩu đăng nhập.</p>
+            <p className="mt-1 text-sm text-slate-600">Xem và cập nhật thông tin cá nhân, đổi mật khẩu.</p>
           </div>
           <button
             type="button"
             onClick={handleClose}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            aria-label="Đóng quản lý tài khoản"
+            aria-label="Đóng"
           >
             X
           </button>
@@ -100,30 +112,56 @@ export default function UserAccountModal({ open, onClose }) {
             <InfoLine label="Họ tên" value={user?.full_name || "-"} />
             <InfoLine label="Email" value={user?.email || "-"} />
             <InfoLine label="Số điện thoại" value={user?.phone || "-"} />
-            <InfoLine label="Vai trò" value={user?.role === "admin" ? "Quản trị viên" : "Người dùng"} />
+            <InfoLine label="Vai trò" value={ROLE_LABEL[user?.role] || user?.role || "-"} />
           </div>
+        </section>
+
+        <section className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="text-sm font-semibold text-slate-900">Cập nhật thông tin</h3>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <input
+              value={profileForm.fullName}
+              onChange={(e) => setProfileForm((p) => ({ ...p, fullName: e.target.value }))}
+              placeholder="Họ tên mới"
+              className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-500"
+            />
+            <input
+              value={profileForm.phone}
+              onChange={(e) => setProfileForm((p) => ({ ...p, phone: e.target.value }))}
+              placeholder="Số điện thoại mới"
+              className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-500"
+            />
+          </div>
+          <button
+            type="button"
+            disabled={saving}
+            className="mt-3 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            onClick={handleUpdateProfile}
+          >
+            {saving ? "Đang lưu..." : "Lưu thông tin"}
+          </button>
         </section>
 
         <section className="mt-5">
           <h3 className="text-sm font-semibold text-slate-900">Đổi mật khẩu</h3>
-          <form className="mt-3 space-y-3" onSubmit={handleSubmit}>
+          <form className="mt-3 space-y-3" onSubmit={handleChangePassword}>
             <input
               type="password"
-              placeholder="Nhập mật khẩu cũ"
+              placeholder="Mật khẩu cũ"
               value={form.oldPassword}
               onChange={(event) => setForm((prev) => ({ ...prev, oldPassword: event.target.value }))}
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-500"
             />
             <input
               type="password"
-              placeholder="Nhập mật khẩu mới"
+              placeholder="Mật khẩu mới"
               value={form.newPassword}
               onChange={(event) => setForm((prev) => ({ ...prev, newPassword: event.target.value }))}
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-500"
             />
             <input
               type="password"
-              placeholder="Nhập lại mật khẩu mới"
+              placeholder="Xác nhận mật khẩu mới"
               value={form.confirmPassword}
               onChange={(event) => setForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-500"

@@ -39,4 +39,18 @@ const createPolicy = async ({ role, title, content, version }) => {
   return id;
 };
 
-module.exports = { getPolicyState, acceptPolicy, createPolicy };
+const getAllPolicies = async () => policyRepository.getAllPolicies();
+
+const updatePolicy = async (id, payload) => {
+  const existing = await policyRepository.getPolicyById(id);
+  if (!existing) throw Object.assign(new Error("Policy not found"), { status: 404 });
+  await policyRepository.updatePolicy(id, payload);
+};
+
+const deletePolicy = async (id) => {
+  const existing = await policyRepository.getPolicyById(id);
+  if (!existing) throw Object.assign(new Error("Policy not found"), { status: 404 });
+  await policyRepository.updatePolicy(id, { isActive: false });
+};
+
+module.exports = { getPolicyState, acceptPolicy, createPolicy, getAllPolicies, updatePolicy, deletePolicy };

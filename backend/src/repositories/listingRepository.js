@@ -126,6 +126,51 @@ const findPendingListings = async () => {
   return rows;
 };
 
+const updateListing = async (listingId, ownerId, payload) => {
+  const [result] = await pool.query(
+    `UPDATE listings SET
+      title = COALESCE(?, title),
+      description = COALESCE(?, description),
+      price = COALESCE(?, price),
+      area = COALESCE(?, area),
+      address = COALESCE(?, address),
+      min_stay = COALESCE(?, min_stay)
+     WHERE id = ? AND owner_id = ?`,
+    [
+      payload.title || null,
+      payload.description || null,
+      payload.price ?? null,
+      payload.area || null,
+      payload.address || null,
+      payload.minStay ?? null,
+      listingId,
+      ownerId
+    ]
+  );
+  return result.affectedRows > 0;
+};
+
+const deleteListing = async (listingId, ownerId) => {
+  const [result] = await pool.query(
+    "DELETE FROM listings WHERE id = ? AND owner_id = ?",
+    [listingId, ownerId]
+  );
+  return result.affectedRows > 0;
+};
+
+const findByOwnerId = async (ownerId) => {
+  const [rows] = await pool.query(
+    `SELECT l.*, COUNT(r.id) review_count, AVG(r.rating) avg_rating
+     FROM listings l
+     LEFT JOIN reviews r ON r.listing_id = l.id
+     WHERE l.owner_id = ?
+     GROUP BY l.id
+     ORDER BY l.created_at DESC`,
+    [ownerId]
+  );
+  return rows;
+};
+
 const countListings = async () => {
   const [rows] = await pool.query("SELECT COUNT(*) total FROM listings");
   return rows[0].total;
@@ -142,5 +187,8 @@ module.exports = {
   resetMissedWeeks,
   penalizeInactiveListings,
   findPendingListings,
+  updateListing,
+  deleteListing,
+  findByOwnerId,
   countListings
 };

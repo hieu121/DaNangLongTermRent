@@ -6,12 +6,25 @@ import ChatPage from "./pages/ChatPage";
 import HomePage from "./pages/HomePage";
 import ListingDetailPage from "./pages/ListingDetailPage";
 import UserPage from "./pages/UserPage";
+import OwnerRequestPage from "./pages/OwnerRequestPage";
+import MyBookingsPage from "./pages/MyBookingsPage";
 import { useAuthStore } from "./store/authStore";
 
 function RequireAuth({ children }) {
   const user = useAuthStore((s) => s.user);
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+  return children;
+}
+
+function RequireRole({ role, children }) {
+  const user = useAuthStore((s) => s.user);
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+  if (user.role !== role) {
+    return <Navigate to="/dashboard" replace />;
   }
   return children;
 }
@@ -41,11 +54,20 @@ function App() {
       >
         <Route path="/dashboard" element={<DashboardRedirect />} />
         <Route path="/user" element={<UserPage />} />
-        <Route path="/tenant" element={<Navigate to="/user" replace />} />
-        <Route path="/owner" element={<Navigate to="/user" replace />} />
         <Route path="/listing/:id" element={<ListingDetailPage />} />
         <Route path="/chat" element={<ChatPage />} />
-        <Route path="/admin" element={<AdminPage />} />
+
+        <Route path="/owner-requests" element={<OwnerRequestPage />} />
+        <Route path="/my-bookings" element={<MyBookingsPage />} />
+
+        <Route
+          path="/admin"
+          element={
+            <RequireRole role="admin">
+              <AdminPage />
+            </RequireRole>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

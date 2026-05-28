@@ -1,9 +1,9 @@
 const express = require("express");
 const controller = require("../controllers/notificationController");
-const auth = require("../middlewares/authMiddleware");
+const verifyToken = require("../middlewares/verifyToken");
 
 const router = express.Router();
-router.use(auth);
+router.use(verifyToken);
 router.get("/", controller.getNotifications);
 router.patch("/:id/read", controller.readNotification);
 
