@@ -9,6 +9,7 @@ const policyRoutes = require("./policyRoutes");
 const adminRoutes = require("./adminRoutes");
 const ownerRequestRoutes = require("./ownerRequestRoutes");
 const bookingRoutes = require("./bookingRoutes");
+const amenityRoutes = require("./amenityRoutes");
 
 const router = express.Router();
 
@@ -22,5 +23,6 @@ router.use("/policies", policyRoutes);
 router.use("/admin", adminRoutes);
 router.use("/owner-requests", ownerRequestRoutes);
 router.use("/bookings", bookingRoutes);
+router.use("/amenities", amenityRoutes);
 
 module.exports = router;

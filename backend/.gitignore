@@ -1,0 +1,4 @@
+node_modules/
+uploads/listings/*
+!uploads/listings/.gitkeep
+.env

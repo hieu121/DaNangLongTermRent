@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { danangWards2026, mockListings, mockPayments } from "../data/mockData";
+import { danangWards2026, mockPayments } from "../data/mockData";
 import { useAuthStore } from "../store/authStore";
 import { api } from "../api/client";
+
+const LISTING_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='240' viewBox='0 0 400 240'%3E%3Crect fill='%23e2e8f0' width='400' height='240'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='16' font-family='sans-serif'%3EChưa có ảnh%3C/text%3E%3C/svg%3E";
 
 export default function UserPage() {
   const [searchParams] = useSearchParams();
@@ -44,10 +47,8 @@ export default function UserPage() {
           setOwnerPendingListings(all.filter((l) => l.status === "pending"));
         }
       } catch {
-        // fallback mock
-        const mockMine = mockListings.filter((item) => Number(item.owner_id) === Number(user?.id));
-        setOwnerApprovedListings(mockMine.filter((l) => l.status !== "pending"));
-        setOwnerPendingListings(mockMine.filter((l) => l.status === "pending"));
+        setOwnerApprovedListings([]);
+        setOwnerPendingListings([]);
       } finally {
         setOwnerListingsLoading(false);
       }
@@ -88,9 +89,41 @@ export default function UserPage() {
     amenities: [],
     imageUrls: []
   });
-  const activeListings = mockListings.filter((item) => item.status === "active");
+  const [amenityOptions, setAmenityOptions] = useState([]);
+  const [activeListings, setActiveListings] = useState([]);
+  const [listingsLoading, setListingsLoading] = useState(true);
   const rentingView = dashboardView === "tenant";
-  const amenityOptions = Array.from(new Set(activeListings.flatMap((listing) => listing.listing_amenities || [])));
+
+  useEffect(() => {
+    const fetchListings = async () => {
+      setListingsLoading(true);
+      try {
+        const res = await api.get("/listings");
+        if (res.data.success) {
+          setActiveListings(res.data.data || []);
+        }
+      } catch {
+        setActiveListings([]);
+      } finally {
+        setListingsLoading(false);
+      }
+    };
+    fetchListings();
+  }, []);
+
+  useEffect(() => {
+    const fetchAmenities = async () => {
+      try {
+        const res = await api.get("/amenities");
+        if (res.data.success) {
+          setAmenityOptions(res.data.data.map((item) => item.name));
+        }
+      } catch {
+        setAmenityOptions([]);
+      }
+    };
+    fetchAmenities();
+  }, []);
   const quickSearchListings = activeListings.filter((listing) =>
     listing.title.toLowerCase().includes(searchKeyword.trim().toLowerCase())
   );
@@ -198,9 +231,16 @@ export default function UserPage() {
             className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
               !rentingView ? "bg-white text-slate-900" : "text-slate-200 hover:bg-white/10"
             }`}
-            onClick={() => {
+            onClick={async () => {
               if (user?.role !== "owner") {
-                setShowOwnerUpgrade(true);
+                await useAuthStore.getState().refreshUser();
+                const updatedUser = useAuthStore.getState().user;
+                if (updatedUser?.role === "owner") {
+                  setShowOwnerUpgrade(false);
+                  setDashboardView("owner");
+                } else {
+                  setShowOwnerUpgrade(true);
+                }
                 return;
               }
               setShowOwnerUpgrade(false);
@@ -422,14 +462,15 @@ export default function UserPage() {
                   />
                 </div>
                 <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {pagedQuickSearchListings.map((listing) => (
+                  {listingsLoading && <p className="text-sm text-slate-500">Đang tải danh sách phòng...</p>}
+                  {!listingsLoading && pagedQuickSearchListings.map((listing) => (
                     <Link
                       key={listing.id}
                       to={`/listing/${listing.id}`}
                       className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md"
                     >
                       <img
-                        src={listing.listing_images?.[0]}
+                        src={listing.listing_images?.[0] || LISTING_PLACEHOLDER}
                         alt={listing.title}
                         className="h-36 w-full rounded-xl border border-slate-200 object-cover"
                       />
@@ -440,11 +481,15 @@ export default function UserPage() {
                       </p>
                     </Link>
                   ))}
-                  {filteredQuickListings.length === 0 && (
-                    <p className="text-sm text-slate-500">Không tìm thấy phòng phù hợp theo tên bạn nhập.</p>
+                  {!listingsLoading && filteredQuickListings.length === 0 && (
+                    <p className="text-sm text-slate-500">
+                      {activeListings.length === 0
+                        ? "Chưa có phòng nào đang cho thuê."
+                        : "Không tìm thấy phòng phù hợp theo tên bạn nhập."}
+                    </p>
                   )}
                 </div>
-                {filteredQuickListings.length > 0 && (
+                {!listingsLoading && filteredQuickListings.length > 0 && (
                   <div className="mt-4 flex items-center justify-end gap-2">
                     <button
                       type="button"
@@ -511,14 +556,15 @@ export default function UserPage() {
                       Đang lọc theo: <b>{selectedAreaLabel}</b>
                     </p>
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      {pagedAreaListings.map((listing) => (
+                      {listingsLoading && <p className="text-sm text-slate-500">Đang tải danh sách phòng...</p>}
+                      {!listingsLoading && pagedAreaListings.map((listing) => (
                         <Link
                           key={listing.id}
                           to={`/listing/${listing.id}`}
                           className="rounded-xl border border-slate-200 p-3 transition hover:-translate-y-0.5 hover:shadow-md"
                         >
                           <img
-                            src={listing.listing_images?.[0]}
+                            src={listing.listing_images?.[0] || LISTING_PLACEHOLDER}
                             alt={listing.title}
                             className="h-36 w-full rounded-xl border border-slate-200 object-cover"
                           />
@@ -529,11 +575,15 @@ export default function UserPage() {
                           </p>
                         </Link>
                       ))}
-                      {filteredByAreaListings.length === 0 && (
-                        <p className="text-sm text-slate-500">Hiện chưa có phòng active trong khu vực đã chọn.</p>
+                      {!listingsLoading && filteredByAreaListings.length === 0 && (
+                        <p className="text-sm text-slate-500">
+                          {activeListings.length === 0
+                            ? "Chưa có phòng nào đang cho thuê."
+                            : "Hiện chưa có phòng active trong khu vực đã chọn."}
+                        </p>
                       )}
                     </div>
-                    {filteredByAreaListings.length > 0 && (
+                    {!listingsLoading && filteredByAreaListings.length > 0 && (
                       <div className="mt-4 flex items-center justify-end gap-2">
                         <button
                           type="button"
@@ -647,14 +697,15 @@ export default function UserPage() {
               </div>
 
               <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {pagedQuickSearchListings.map((listing) => (
+                {listingsLoading && <p className="text-sm text-slate-500">Đang tải danh sách phòng...</p>}
+                {!listingsLoading && pagedQuickSearchListings.map((listing) => (
                   <Link
                     key={listing.id}
                     to={`/listing/${listing.id}`}
                     className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <img
-                      src={listing.listing_images?.[0]}
+                      src={listing.listing_images?.[0] || LISTING_PLACEHOLDER}
                       alt={listing.title}
                       className="h-36 w-full rounded-xl border border-slate-200 object-cover"
                     />
@@ -665,11 +716,15 @@ export default function UserPage() {
                     </p>
                   </Link>
                 ))}
-                {filteredQuickListings.length === 0 && (
-                  <p className="text-sm text-slate-500">Không có phòng phù hợp với bộ lọc đã chọn.</p>
+                {!listingsLoading && filteredQuickListings.length === 0 && (
+                  <p className="text-sm text-slate-500">
+                    {activeListings.length === 0
+                      ? "Chưa có phòng nào đang cho thuê."
+                      : "Không có phòng phù hợp với bộ lọc đã chọn."}
+                  </p>
                 )}
               </div>
-              {filteredQuickListings.length > 0 && (
+              {!listingsLoading && filteredQuickListings.length > 0 && (
                 <div className="mt-4 flex items-center justify-end gap-2">
                   <button
                     type="button"
@@ -800,11 +855,17 @@ export default function UserPage() {
                                 return;
                               }
                               try {
-                                await api.put(`/listings/${listing.id}`, {
+                                const res = await api.put(`/listings/${listing.id}`, {
                                   price: Number(editListingForm.price),
                                   minStay: Number(editListingForm.minStay),
-                                  availableDate: editListingForm.availableDate
+                                  availableDate: editListingForm.availableDate,
+                                  status: editListingForm.status
                                 });
+                                if (res.data.data?.pendingApproval) {
+                                  alert("Yêu cầu cập nhật đã gửi. Chờ admin duyệt để áp dụng thay đổi.");
+                                  setEditingListingId(null);
+                                  return;
+                                }
                                 setOwnerApprovedListings((prev) =>
                                   prev.map((item) =>
                                     item.id === listing.id
@@ -813,14 +874,14 @@ export default function UserPage() {
                                           price: Number(editListingForm.price),
                                           min_stay: Number(editListingForm.minStay),
                                           available_date: editListingForm.availableDate,
-                                          status: editListingForm.status,
+                                          status: editListingForm.status === "inactive" ? "hidden" : editListingForm.status,
                                         }
                                       : item
                                   )
                                 );
                                 setEditingListingId(null);
-                              } catch {
-                                alert("Lỗi cập nhật phòng");
+                              } catch (err) {
+                                alert(err.response?.data?.message || "Lỗi cập nhật phòng");
                               }
                             }}
                           >
@@ -934,7 +995,7 @@ export default function UserPage() {
               <div className="mt-3 rounded-lg border border-slate-200 p-3">
                 <p className="text-sm font-semibold">Chọn tiện nghi</p>
                 <div className="mt-2 flex flex-wrap gap-3">
-                  {Array.from(new Set(mockListings.flatMap((item) => item.listing_amenities || []))).map((amenity) => (
+                  {amenityOptions.map((amenity) => (
                     <label key={amenity} className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
@@ -1068,8 +1129,8 @@ export default function UserPage() {
                         ...prev
                       ]);
                     }
-                  } catch {
-                    alert("Lỗi đăng tin");
+                  } catch (err) {
+                    alert(err.response?.data?.message || "Lỗi đăng tin");
                   }
                   setNewListingForm({
                     title: "",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import NotificationBell from "./NotificationBell";
 import PolicyModal from "./PolicyModal";
@@ -9,9 +9,15 @@ export default function MainLayout() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const refreshUser = useAuthStore((s) => s.refreshUser);
   const navigate = useNavigate();
   const dashboardPath = user?.role === "admin" ? "/admin" : "/user";
   const roleLabel = ROLE_LABEL[user?.role] || "Người dùng";
+
+  useEffect(() => {
+    if (user) refreshUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-100">

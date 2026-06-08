@@ -1,4 +1,3 @@
-const listingRepository = require("../repositories/listingRepository");
 const userRepository = require("../repositories/userRepository");
 const adminService = require("../services/adminService");
 const ownerRequestService = require("../services/ownerRequestService");
@@ -7,8 +6,44 @@ const { success } = require("../utils/response");
 
 const getPendingListings = async (req, res, next) => {
   try {
-    const data = await listingRepository.findPendingListings();
+    const data = await adminService.getPendingListings();
     return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getAllListings = async (req, res, next) => {
+  try {
+    const data = await adminService.getAllListings();
+    return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getActiveListings = async (req, res, next) => {
+  try {
+    const data = await adminService.getActiveListings();
+    return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getListingDetail = async (req, res, next) => {
+  try {
+    const data = await adminService.getListingDetail(Number(req.params.listingId));
+    return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const deleteListing = async (req, res, next) => {
+  try {
+    await adminService.deleteListing(Number(req.params.listingId));
+    return success(res, null, "Listing deleted");
   } catch (error) {
     return next(error);
   }
@@ -23,6 +58,29 @@ const reviewListing = async (req, res, next) => {
       note: req.body.note
     });
     return success(res, null, "Listing reviewed");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getPendingUpdates = async (req, res, next) => {
+  try {
+    const data = await adminService.getPendingUpdates();
+    return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const reviewUpdateRequest = async (req, res, next) => {
+  try {
+    await adminService.reviewUpdateRequest({
+      updateRequestId: req.body.updateRequestId,
+      adminId: req.user.id,
+      action: req.body.action,
+      note: req.body.note
+    });
+    return success(res, null, "Update request reviewed");
   } catch (error) {
     return next(error);
   }
@@ -44,6 +102,15 @@ const warnOwner = async (req, res, next) => {
 const getUsers = async (req, res, next) => {
   try {
     const data = await userRepository.findAllUsers();
+    return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getUserDetail = async (req, res, next) => {
+  try {
+    const data = await adminService.getUserDetail(Number(req.params.userId));
     return success(res, data);
   } catch (error) {
     return next(error);
@@ -137,9 +204,16 @@ const deletePolicy = async (req, res, next) => {
 
 module.exports = {
   getPendingListings,
+  getAllListings,
+  getActiveListings,
+  getListingDetail,
+  deleteListing,
   reviewListing,
+  getPendingUpdates,
+  reviewUpdateRequest,
   warnOwner,
   getUsers,
+  getUserDetail,
   toggleUserStatus,
   createPolicy,
   stats,

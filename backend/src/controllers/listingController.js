@@ -40,8 +40,11 @@ const getListingDetail = async (req, res, next) => {
 
 const updateListing = async (req, res, next) => {
   try {
-    await listingService.updateListing(req.user.id, Number(req.params.id), req.body);
-    return success(res, null, "Listing updated");
+    const result = await listingService.updateListing(req.user.id, Number(req.params.id), req.body);
+    if (result.pendingApproval) {
+      return success(res, result, "Update request submitted for admin approval");
+    }
+    return success(res, result, "Listing updated");
   } catch (error) {
     return next(error);
   }

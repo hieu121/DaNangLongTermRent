@@ -86,6 +86,27 @@ const ownerRequestNoteSchema = Joi.object({
   note: Joi.string().allow("", null).default("")
 });
 
+const createAmenitySchema = Joi.object({
+  name: Joi.string().trim().min(1).max(100).required()
+});
+
+const adminReviewUpdateSchema = Joi.object({
+  updateRequestId: Joi.number().integer().required(),
+  action: Joi.string().valid("approve", "reject").required(),
+  note: Joi.string().allow("", null)
+});
+
+const updateListingSchema = Joi.object({
+  title: Joi.string(),
+  description: Joi.string(),
+  price: Joi.number().min(0),
+  area: Joi.string(),
+  address: Joi.string(),
+  minStay: Joi.number().integer().min(1),
+  availableDate: Joi.date(),
+  status: Joi.string().valid("active", "inactive", "hidden")
+}).min(1);
+
 const updateProfileSchema = Joi.object({
   fullName: Joi.string().min(2),
   phone: Joi.string().allow("", null),
@@ -111,6 +132,9 @@ module.exports = {
   createPolicySchema,
   createBookingSchema,
   ownerRequestNoteSchema,
+  createAmenitySchema,
+  adminReviewUpdateSchema,
+  updateListingSchema,
   updateProfileSchema,
   changePasswordSchema
 };

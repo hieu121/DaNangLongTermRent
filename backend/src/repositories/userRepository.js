@@ -65,6 +65,46 @@ const findAllUsers = async () => {
   return users.map(u => u.get({ plain: true }));
 };
 
+const findUserDetailForAdmin = async (userId) => {
+  const user = await findById(userId);
+  if (!user) return null;
+
+  const fullUser = await User.findByPk(userId, {
+    attributes: ["id", "email", "full_name", "phone", "role", "avatar_url", "is_verified", "is_active", "created_at"]
+  });
+  const userData = fullUser.get({ plain: true });
+
+  const [listingRows] = await sequelize.query(
+    `SELECT id, title, status, price, area, created_at
+     FROM listings WHERE owner_id = ? ORDER BY created_at DESC`,
+    { replacements: [userId] }
+  );
+  const [paymentRows] = await sequelize.query(
+    `SELECT COUNT(*) AS total FROM payments WHERE tenant_id = ?`,
+    { replacements: [userId] }
+  );
+  const [googleRows] = await sequelize.query(
+    `SELECT google_id, email FROM user_google_accounts WHERE user_id = ? LIMIT 1`,
+    { replacements: [userId] }
+  );
+  const [landlordReqRows] = await sequelize.query(
+    `SELECT id, status, created_at, reviewed_at, note
+     FROM landlord_requests WHERE user_id = ? ORDER BY created_at DESC`,
+    { replacements: [userId] }
+  );
+
+  return {
+    ...userData,
+    listings: listingRows,
+    stats: {
+      listingCount: listingRows.length,
+      paymentCount: Number(paymentRows[0]?.total || 0)
+    },
+    googleAccount: googleRows[0] || null,
+    landlordRequests: landlordReqRows
+  };
+};
+
 module.exports = {
   createUser,
   findByEmail,
@@ -73,5 +113,6 @@ module.exports = {
   updateVerification,
   updateUserDetails,
   upsertGoogleAccount,
-  findAllUsers
+  findAllUsers,
+  findUserDetailForAdmin
 };

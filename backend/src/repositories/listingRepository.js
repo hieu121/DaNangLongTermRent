@@ -35,6 +35,45 @@ const setListingAssets = async (listingId, imageUrls = [], amenities = []) => {
   }
 };
 
+const enrichListingsWithAssets = async (listings) => {
+  if (!listings.length) {
+    return [];
+  }
+
+  const listingIds = listings.map((listing) => listing.id);
+  const [imageRows] = await pool.query(
+    "SELECT listing_id, image_url FROM listing_images WHERE listing_id IN (?) ORDER BY id",
+    [listingIds]
+  );
+  const [amenityRows] = await pool.query(
+    "SELECT listing_id, amenity FROM listing_amenities WHERE listing_id IN (?)",
+    [listingIds]
+  );
+
+  const imagesByListing = {};
+  const amenitiesByListing = {};
+
+  imageRows.forEach((row) => {
+    if (!imagesByListing[row.listing_id]) {
+      imagesByListing[row.listing_id] = [];
+    }
+    imagesByListing[row.listing_id].push(row.image_url);
+  });
+
+  amenityRows.forEach((row) => {
+    if (!amenitiesByListing[row.listing_id]) {
+      amenitiesByListing[row.listing_id] = [];
+    }
+    amenitiesByListing[row.listing_id].push(row.amenity);
+  });
+
+  return listings.map((listing) => ({
+    ...listing,
+    listing_images: imagesByListing[listing.id] || [],
+    listing_amenities: amenitiesByListing[listing.id] || []
+  }));
+};
+
 const findActiveListings = async ({ area, minPrice, maxPrice, minStay, sortBy }) => {
   let sql = `
     SELECT l.*, u.full_name owner_name,
@@ -121,9 +160,66 @@ const penalizeInactiveListings = async () => {
 
 const findPendingListings = async () => {
   const [rows] = await pool.query(
-    "SELECT * FROM listings WHERE status = 'pending' ORDER BY created_at ASC"
+    `SELECT l.*, u.full_name owner_name, u.email owner_email, u.phone owner_phone
+     FROM listings l
+     JOIN users u ON u.id = l.owner_id
+     WHERE l.status = 'pending'
+     ORDER BY l.created_at ASC`
   );
   return rows;
+};
+
+const findAllListingsForAdmin = async () => {
+  const [rows] = await pool.query(
+    `SELECT l.*, u.full_name owner_name, u.email owner_email, u.phone owner_phone
+     FROM listings l
+     JOIN users u ON u.id = l.owner_id
+     ORDER BY l.created_at DESC`
+  );
+  return rows;
+};
+
+const findAllActiveListings = async () => {
+  const [rows] = await pool.query(
+    `SELECT l.*, u.full_name owner_name, u.email owner_email, u.phone owner_phone
+     FROM listings l
+     JOIN users u ON u.id = l.owner_id
+     WHERE l.status = 'active'
+     ORDER BY l.created_at DESC`
+  );
+  return rows;
+};
+
+const adminDeleteListing = async (listingId) => {
+  const [result] = await pool.query("DELETE FROM listings WHERE id = ?", [listingId]);
+  return result.affectedRows > 0;
+};
+
+const applyListingUpdate = async (listingId, payload) => {
+  const status = payload.status === "inactive" ? "hidden" : payload.status || null;
+  await pool.query(
+    `UPDATE listings SET
+      title = COALESCE(?, title),
+      description = COALESCE(?, description),
+      price = COALESCE(?, price),
+      area = COALESCE(?, area),
+      address = COALESCE(?, address),
+      min_stay = COALESCE(?, min_stay),
+      available_date = COALESCE(?, available_date),
+      status = COALESCE(?, status)
+     WHERE id = ?`,
+    [
+      payload.title || null,
+      payload.description || null,
+      payload.price ?? null,
+      payload.area || null,
+      payload.address || null,
+      payload.minStay ?? null,
+      payload.availableDate || null,
+      status,
+      listingId
+    ]
+  );
 };
 
 const updateListing = async (listingId, ownerId, payload) => {
@@ -179,6 +275,7 @@ const countListings = async () => {
 module.exports = {
   createListing,
   setListingAssets,
+  enrichListingsWithAssets,
   findActiveListings,
   findListingById,
   findListingImages,
@@ -187,6 +284,10 @@ module.exports = {
   resetMissedWeeks,
   penalizeInactiveListings,
   findPendingListings,
+  findAllListingsForAdmin,
+  findAllActiveListings,
+  adminDeleteListing,
+  applyListingUpdate,
   updateListing,
   deleteListing,
   findByOwnerId,

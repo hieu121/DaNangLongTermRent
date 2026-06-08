@@ -2,6 +2,11 @@ CREATE DATABASE IF NOT EXISTS data_dananglongtermrent;
 USE data_dananglongtermrent;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS listing_update_requests;
+DROP TABLE IF EXISTS amenities;
+DROP TABLE IF EXISTS landlord_requests;
+DROP TABLE IF EXISTS bookings;
+DROP TABLE IF EXISTS roles;
 DROP TABLE IF EXISTS user_policy_acceptances;
 DROP TABLE IF EXISTS policies;
 DROP TABLE IF EXISTS listing_update_logs;
@@ -52,6 +57,37 @@ CREATE TABLE otps (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_otps_email ON otps(email);
+
+CREATE TABLE listing_update_requests (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  listing_id INT NOT NULL,
+  owner_id INT NOT NULL,
+  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  proposed_data JSON NOT NULL,
+  reviewed_by INT NULL,
+  reviewed_at TIMESTAMP NULL,
+  note TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE,
+  FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX idx_listing_update_requests_listing ON listing_update_requests(listing_id);
+CREATE INDEX idx_listing_update_requests_status ON listing_update_requests(status);
+
+CREATE TABLE landlord_requests (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  reviewed_by INT NULL,
+  reviewed_at TIMESTAMP NULL,
+  note TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX idx_landlord_requests_user ON landlord_requests(user_id);
+CREATE INDEX idx_landlord_requests_status ON landlord_requests(status);
 
 CREATE TABLE listings (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -104,6 +140,23 @@ CREATE TABLE payment_listing_access (
   FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE,
   FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
 );
+
+CREATE TABLE bookings (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id INT NOT NULL,
+  listing_id INT NOT NULL,
+  check_in DATE NOT NULL,
+  check_out DATE NOT NULL,
+  guests INT DEFAULT 1,
+  total_price DECIMAL(12, 2) NOT NULL,
+  status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_bookings_tenant ON bookings(tenant_id);
+CREATE INDEX idx_bookings_listing ON bookings(listing_id);
 
 CREATE TABLE conversations (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -202,6 +255,31 @@ CREATE TABLE reviews (
   FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
   UNIQUE KEY uniq_listing_tenant_review (listing_id, tenant_id)
 );
+
+CREATE TABLE amenities (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO amenities (name) VALUES
+  ('Wifi'),
+  ('Máy lạnh'),
+  ('Máy giặt'),
+  ('Nước nóng'),
+  ('Chỗ để xe'),
+  ('Ban công');
+
+CREATE TABLE roles (
+  name VARCHAR(32) PRIMARY KEY,
+  description VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO roles (name, description) VALUES
+  ('tenant', 'Tenant user with booking and review rights'),
+  ('owner', 'Owner user with listing management rights'),
+  ('admin', 'Administrator with full management rights');
 
 CREATE INDEX idx_listing_area ON listings(area);
 CREATE INDEX idx_listing_price ON listings(price);

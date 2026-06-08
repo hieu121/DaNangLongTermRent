@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { mockListings } from "../data/mockData";
 import { useAuthStore } from "../store/authStore";
 import { api } from "../api/client";
 
@@ -24,8 +23,7 @@ export default function ListingDetailPage() {
         const res = await api.get(`/listings/${id}`);
         if (res.data.success) setData(res.data.data);
       } catch {
-        const mock = mockListings.find((item) => Number(item.id) === Number(id));
-        setData(mock || null);
+        setData(null);
       } finally {
         setLoading(false);
       }
