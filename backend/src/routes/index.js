@@ -10,6 +10,7 @@ const adminRoutes = require("./adminRoutes");
 const ownerRequestRoutes = require("./ownerRequestRoutes");
 const bookingRoutes = require("./bookingRoutes");
 const amenityRoutes = require("./amenityRoutes");
+const cartRoutes = require("./cartRoutes");
 
 const router = express.Router();
 
@@ -24,5 +25,6 @@ router.use("/admin", adminRoutes);
 router.use("/owner-requests", ownerRequestRoutes);
 router.use("/bookings", bookingRoutes);
 router.use("/amenities", amenityRoutes);
+router.use("/cart", cartRoutes);
 
 module.exports = router;

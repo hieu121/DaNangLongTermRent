@@ -8,6 +8,7 @@ import ListingDetailPage from "./pages/ListingDetailPage";
 import UserPage from "./pages/UserPage";
 import OwnerRequestPage from "./pages/OwnerRequestPage";
 import MyBookingsPage from "./pages/MyBookingsPage";
+import CartPage from "./pages/CartPage";
 import { useAuthStore } from "./store/authStore";
 
 function RequireAuth({ children }) {
@@ -59,6 +60,7 @@ function App() {
 
         <Route path="/owner-requests" element={<OwnerRequestPage />} />
         <Route path="/my-bookings" element={<MyBookingsPage />} />
+        <Route path="/cart" element={<CartPage />} />
 
         <Route
           path="/admin"

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
+import AdminRevenuePanel from "../components/AdminRevenuePanel";
 
 const POLICY_ROLE_LABEL = { tenant: "Người thuê", owner: "Chủ nhà" };
 const ROLE_LABEL = { tenant: "Người thuê", owner: "Chủ nhà", admin: "Admin" };
@@ -198,6 +199,7 @@ export default function AdminPage() {
     { id: "userAccounts", label: "Quản lý user" },
     { id: "ownerRequests", label: "Duyệt chủ nhà" },
     { id: "roomManagement", label: "Quản lý phòng" },
+    { id: "revenue", label: "Quản lý doanh thu" },
     { id: "amenities", label: "Tiện nghi" },
     { id: "policies", label: "Chính sách" }
   ];
@@ -491,6 +493,16 @@ export default function AdminPage() {
                 </button>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {tab === "revenue" && (
+        <section className="card">
+          <h2 className="font-semibold">Quản lý doanh thu</h2>
+          <p className="mt-1 text-sm text-slate-600">Theo dõi doanh thu, biểu đồ và danh sách giao dịch thanh toán.</p>
+          <div className="mt-4">
+            <AdminRevenuePanel />
           </div>
         </section>
       )}

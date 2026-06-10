@@ -16,6 +16,7 @@ DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS messages;
 DROP TABLE IF EXISTS conversation_participants;
 DROP TABLE IF EXISTS conversations;
+DROP TABLE IF EXISTS cart_items;
 DROP TABLE IF EXISTS payment_listing_access;
 DROP TABLE IF EXISTS payments;
 DROP TABLE IF EXISTS listing_amenities;
@@ -138,6 +139,16 @@ CREATE TABLE payment_listing_access (
   listing_id INT NOT NULL,
   unlocked BOOLEAN DEFAULT FALSE,
   FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE,
+  FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
+);
+
+CREATE TABLE cart_items (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id INT NOT NULL,
+  listing_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY cart_items_tenant_listing_unique (tenant_id, listing_id),
+  FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
 );
 

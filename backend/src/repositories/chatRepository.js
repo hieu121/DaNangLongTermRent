@@ -1,22 +1,26 @@
 const pool = require("../config/db");
 
-const getOrCreateConversationWithAdmin = async (userId) => {
+const getOrCreateConversationWithAdmin = async (userId, preferredAdminId = null) => {
   const [rows] = await pool.query(
     `SELECT c.id
      FROM conversations c
      JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
      JOIN conversation_participants cp2 ON cp2.conversation_id = c.id
      JOIN users u2 ON u2.id = cp2.user_id AND u2.role = 'admin'
+     ${preferredAdminId ? "AND u2.id = ?" : ""}
      LIMIT 1`,
-    [userId]
+    preferredAdminId ? [userId, preferredAdminId] : [userId]
   );
 
   if (rows[0]) {
     return rows[0].id;
   }
 
-  const [adminRows] = await pool.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
-  const adminId = adminRows[0]?.id;
+  let adminId = preferredAdminId;
+  if (!adminId) {
+    const [adminRows] = await pool.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
+    adminId = adminRows[0]?.id;
+  }
   if (!adminId) {
     throw new Error("Admin account not found");
   }
@@ -73,10 +77,19 @@ const getParticipantIds = async (conversationId) => {
   return rows.map((r) => r.user_id);
 };
 
+const isUserParticipant = async (conversationId, userId) => {
+  const [rows] = await pool.query(
+    "SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ? LIMIT 1",
+    [conversationId, userId]
+  );
+  return Boolean(rows[0]);
+};
+
 module.exports = {
   getOrCreateConversationWithAdmin,
   createMessage,
   getConversationMessages,
   getConversationList,
-  getParticipantIds
+  getParticipantIds,
+  isUserParticipant
 };

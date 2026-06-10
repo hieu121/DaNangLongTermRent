@@ -202,6 +202,39 @@ const deletePolicy = async (req, res, next) => {
   }
 };
 
+const getRevenueStats = async (req, res, next) => {
+  try {
+    const data = await adminService.getRevenueStats();
+    return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getMonthlyRevenue = async (req, res, next) => {
+  try {
+    const data = await adminService.getMonthlyRevenue();
+    return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getRevenueTransactions = async (req, res, next) => {
+  try {
+    const data = await adminService.getRevenueTransactions({
+      search: req.query.search || "",
+      status: req.query.status || "",
+      method: req.query.method || "",
+      fromDate: req.query.fromDate || "",
+      toDate: req.query.toDate || ""
+    });
+    return success(res, data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getPendingListings,
   getAllListings,
@@ -222,5 +255,8 @@ module.exports = {
   rejectOwnerRequest,
   getPolicies,
   updatePolicy,
-  deletePolicy
+  deletePolicy,
+  getRevenueStats,
+  getMonthlyRevenue,
+  getRevenueTransactions
 };

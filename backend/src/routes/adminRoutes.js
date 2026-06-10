@@ -43,4 +43,8 @@ router.get("/amenities", amenityController.getAmenities);
 router.post("/amenities", validate(createAmenitySchema), amenityController.createAmenity);
 router.delete("/amenities/:id", amenityController.deleteAmenity);
 
+router.get("/revenue/stats", controller.getRevenueStats);
+router.get("/revenue/monthly", controller.getMonthlyRevenue);
+router.get("/revenue/transactions", controller.getRevenueTransactions);
+
 module.exports = router;

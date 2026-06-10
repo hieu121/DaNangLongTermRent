@@ -106,6 +106,12 @@ const toggleUserStatus = async (userId) => {
 
 const createPolicy = async (payload) => policyService.createPolicy(payload);
 
+const getRevenueStats = async () => paymentRepository.getRevenueStats();
+
+const getMonthlyRevenue = async () => paymentRepository.getMonthlyRevenue();
+
+const getRevenueTransactions = async (filters) => paymentRepository.findTransactionsForAdmin(filters);
+
 module.exports = {
   getDashboardStats,
   getUserDetail,
@@ -119,5 +125,8 @@ module.exports = {
   reviewUpdateRequest,
   warnOwner,
   toggleUserStatus,
-  createPolicy
+  createPolicy,
+  getRevenueStats,
+  getMonthlyRevenue,
+  getRevenueTransactions
 };

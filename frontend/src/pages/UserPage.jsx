@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { danangWards2026, mockPayments } from "../data/mockData";
+import { danangWards2026 } from "../data/mockData";
 import { useAuthStore } from "../store/authStore";
 import { api } from "../api/client";
 
@@ -31,7 +31,10 @@ export default function UserPage() {
   const [unitKeyword, setUnitKeyword] = useState("");
   const [searchPage, setSearchPage] = useState(1);
   const [areaPage, setAreaPage] = useState(1);
-  const myPayments = mockPayments.filter((item) => Number(item.tenant_id) === Number(user?.id));
+  const [myPayments, setMyPayments] = useState([]);
+  const [purchasedListings, setPurchasedListings] = useState([]);
+  const [cartCount, setCartCount] = useState(0);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [ownerApprovedListings, setOwnerApprovedListings] = useState([]);
   const [ownerPendingListings, setOwnerPendingListings] = useState([]);
   const [, setOwnerListingsLoading] = useState(true);
@@ -93,6 +96,30 @@ export default function UserPage() {
   const [activeListings, setActiveListings] = useState([]);
   const [listingsLoading, setListingsLoading] = useState(true);
   const rentingView = dashboardView === "tenant";
+
+  useEffect(() => {
+    if (user?.role !== "tenant") return;
+    const fetchTenantData = async () => {
+      setPaymentsLoading(true);
+      try {
+        const [paymentsRes, purchasedRes, cartRes] = await Promise.all([
+          api.get("/payments/my-payments"),
+          api.get("/payments/purchased-listings"),
+          api.get("/cart/count")
+        ]);
+        if (paymentsRes.data.success) setMyPayments(paymentsRes.data.data || []);
+        if (purchasedRes.data.success) setPurchasedListings(purchasedRes.data.data || []);
+        if (cartRes.data.success) setCartCount(cartRes.data.data?.count || 0);
+      } catch {
+        setMyPayments([]);
+        setPurchasedListings([]);
+        setCartCount(0);
+      } finally {
+        setPaymentsLoading(false);
+      }
+    };
+    fetchTenantData();
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     const fetchListings = async () => {
@@ -250,7 +277,7 @@ export default function UserPage() {
             Người cho thuê
           </button>
         </div>
-        <div className={`mt-5 grid gap-3 ${rentingView ? "md:grid-cols-3" : "md:grid-cols-3"}`}>
+        <div className={`mt-5 grid gap-3 ${rentingView ? "md:grid-cols-3 lg:grid-cols-5" : "md:grid-cols-3"}`}>
       {rentingView ? (
             <>
               <Metric
@@ -264,6 +291,18 @@ export default function UserPage() {
                 label="Quản lý giao dịch"
                 active={tenantSection === "transactions"}
                 onClick={() => toggleTenantSection("transactions")}
+              />
+              <Metric
+                value={purchasedListings.length}
+                label="Phòng đã mua"
+                active={tenantSection === "purchased"}
+                onClick={() => toggleTenantSection("purchased")}
+              />
+              <Metric
+                value={cartCount}
+                label="Giỏ hàng"
+                active={tenantSection === "cart"}
+                onClick={() => toggleTenantSection("cart")}
               />
               <Metric
                 value=""
@@ -421,7 +460,7 @@ export default function UserPage() {
       {rentingView && !tenantSection && (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-5">
           <p className="text-sm text-slate-600">
-            Chọn <b>Phòng đang mở</b>, <b>Quản lý giao dịch</b> hoặc <b>Tìm kiếm phòng nhanh</b> trên khối chỉ số để hiển thị nội dung bên dưới.
+            Chọn một mục trên khối chỉ số (Phòng đang mở, Giao dịch, Phòng đã mua, Giỏ hàng...) để hiển thị nội dung bên dưới.
           </p>
         </section>
       )}
@@ -432,20 +471,77 @@ export default function UserPage() {
             <section className="rounded-2xl border border-slate-200 bg-white p-5">
               <h2 className="text-lg font-semibold">Quản lý giao dịch</h2>
               <p className="mt-1 text-sm text-slate-500">Theo dõi trạng thái các khoản thanh toán của tài khoản.</p>
+              {paymentsLoading && <p className="mt-3 text-sm text-slate-500">Đang tải...</p>}
               <div className="mt-3 space-y-2">
                 {myPayments.map((payment) => (
                   <div key={payment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-sm">
-                      GD #{payment.id} - {Number(payment.amount).toLocaleString()} VND - {payment.created_at}
-                    </p>
+                    <div className="text-sm">
+                      <p>
+                        GD #{payment.id} - {Number(payment.amount).toLocaleString()} VND - {formatDateTime(payment.created_at)}
+                      </p>
+                      {payment.listings?.length > 0 && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Phòng: {payment.listings.map((item) => item.listing_title).join(", ")}
+                        </p>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <span className="rounded-full bg-slate-200 px-3 py-1 text-xs">{payment.method}</span>
                       <PaymentStatusBadge status={payment.status} />
                     </div>
                   </div>
                 ))}
-                {myPayments.length === 0 && <p className="text-sm text-slate-500">Chưa có giao dịch nào.</p>}
+                {!paymentsLoading && myPayments.length === 0 && <p className="text-sm text-slate-500">Chưa có giao dịch nào.</p>}
               </div>
+            </section>
+          )}
+
+          {tenantSection === "purchased" && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h2 className="text-lg font-semibold">Phòng đã mua</h2>
+              <p className="mt-1 text-sm text-slate-500">Các phòng bạn đã thanh toán để xem thông tin liên hệ chủ nhà.</p>
+              {paymentsLoading && <p className="mt-3 text-sm text-slate-500">Đang tải...</p>}
+              <div className="mt-3 space-y-3">
+                {purchasedListings.map((item) => (
+                  <div key={`${item.id}-${item.payment_id}`} className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <img
+                      src={item.image_url || LISTING_PLACEHOLDER}
+                      alt={item.title}
+                      className="h-16 w-24 rounded-lg border border-slate-200 object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <Link to={`/listing/${item.id}`} className="font-semibold text-slate-900 hover:underline">
+                        {item.title}
+                      </Link>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Thanh toán: {formatDateTime(item.purchased_at)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-slate-200 px-3 py-1 text-xs">{item.method}</span>
+                      <PaymentStatusBadge status={item.payment_status} />
+                    </div>
+                  </div>
+                ))}
+                {!paymentsLoading && purchasedListings.length === 0 && (
+                  <p className="text-sm text-slate-500">Chưa có phòng nào được thanh toán.</p>
+                )}
+              </div>
+            </section>
+          )}
+
+          {tenantSection === "cart" && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h2 className="text-lg font-semibold">Giỏ hàng</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Quản lý phòng trong giỏ và thanh toán nhiều phòng cùng lúc.
+              </p>
+              <Link
+                to="/cart"
+                className="mt-4 inline-block rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                Mở giỏ hàng ({cartCount} phòng)
+              </Link>
             </section>
           )}
 

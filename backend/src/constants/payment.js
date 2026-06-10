@@ -1,0 +1,3 @@
+const CONTACT_UNLOCK_PRICE = 30000;
+
+module.exports = { CONTACT_UNLOCK_PRICE };

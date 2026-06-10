@@ -36,12 +36,20 @@ export default function MainLayout() {
             </Link>
 
             {user?.role === "tenant" && (
-              <Link
-                to="/my-bookings"
-                className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
-              >
-                Đặt phòng
-              </Link>
+              <>
+                <Link
+                  to="/my-bookings"
+                  className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
+                >
+                  Đặt phòng
+                </Link>
+                <Link
+                  to="/cart"
+                  className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
+                >
+                  Giỏ hàng
+                </Link>
+              </>
             )}
 
             {user?.role === "owner" && (

@@ -2,11 +2,20 @@ import { create } from "zustand";
 import { api } from "../api/client";
 
 const savedToken = localStorage.getItem("token");
-const savedUser = localStorage.getItem("user");
+
+const parseSavedUser = () => {
+  try {
+    const savedUser = localStorage.getItem("user");
+    return savedUser ? JSON.parse(savedUser) : null;
+  } catch {
+    localStorage.removeItem("user");
+    return null;
+  }
+};
 
 export const useAuthStore = create((set) => ({
   token: savedToken || "",
-  user: savedUser ? JSON.parse(savedUser) : null,
+  user: parseSavedUser(),
   policyBlocked: false,
   login: ({ token, user, policyState }) => {
     localStorage.setItem("token", token);

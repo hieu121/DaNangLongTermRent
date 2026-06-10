@@ -39,7 +39,15 @@ const createListingSchema = Joi.object({
 
 const paymentSchema = Joi.object({
   listingId: Joi.number().integer().required(),
-  amount: Joi.number().positive().required()
+  amount: Joi.number().positive().optional()
+});
+
+const checkoutSchema = Joi.object({
+  listingIds: Joi.array().items(Joi.number().integer()).min(1).required()
+});
+
+const cartItemSchema = Joi.object({
+  listingId: Joi.number().integer().required()
 });
 
 const reviewSchema = Joi.object({
@@ -126,6 +134,8 @@ module.exports = {
   googleLoginSchema,
   createListingSchema,
   paymentSchema,
+  checkoutSchema,
+  cartItemSchema,
   reviewSchema,
   adminReviewListingSchema,
   warningSchema,
